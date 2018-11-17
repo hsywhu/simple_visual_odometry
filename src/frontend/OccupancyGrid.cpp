@@ -23,16 +23,17 @@ void OccupancyGrid::addPoint1(Point2f& p)
 {
 	int width_idx = p.x / Ix;
 	int height_idx = p.y / Iy;
-	isFree[width_idx][height_idx] = true;
+	isFree[width_idx][height_idx] = false;
 }
 
 bool OccupancyGrid::isNewFeature1(Point2f& p)
 {
+	// cout << "isNewFeature1" << Ix << " " << Iy << endl;
 	int width_idx = p.x / Ix;
 	int height_idx = p.y / Iy;
 	
 	// Center
-	if (isFree[width_idx][height_idx] == true)
+	if (isFree[width_idx][height_idx] == false)
 	{
 		return false;
 	}
@@ -40,7 +41,7 @@ bool OccupancyGrid::isNewFeature1(Point2f& p)
 	// Up
 	if ((height_idx - 1) >= 0)
 	{
-		if (isFree[width_idx][height_idx - 1] == true)
+		if (isFree[width_idx][height_idx - 1] == false)
 		{
 			return false;
 		}
@@ -49,7 +50,7 @@ bool OccupancyGrid::isNewFeature1(Point2f& p)
 	// Down
 	if ((height_idx + 1) < ny)
 	{
-		if (isFree[width_idx][height_idx + 1] == true)
+		if (isFree[width_idx][height_idx + 1] == false)
 		{
 			return false;
 		}
@@ -58,7 +59,7 @@ bool OccupancyGrid::isNewFeature1(Point2f& p)
 	// Left
 	if ((width_idx - 1) >= 0)
 	{
-		if (isFree[width_idx - 1][height_idx] == true)
+		if (isFree[width_idx - 1][height_idx] == false)
 		{
 			return false;
 		}
@@ -67,7 +68,7 @@ bool OccupancyGrid::isNewFeature1(Point2f& p)
 	// Right
 	if ((width_idx + 1) < nx)
 	{
-		if (isFree[width_idx + 1][height_idx] == true)
+		if (isFree[width_idx + 1][height_idx] == false)
 		{
 			return false;
 		}
@@ -76,7 +77,7 @@ bool OccupancyGrid::isNewFeature1(Point2f& p)
 	// UpRight
 	if ((width_idx + 1) < nx && (height_idx - 1) >= 0)
 	{
-		if (isFree[width_idx + 1][height_idx - 1] == true)
+		if (isFree[width_idx + 1][height_idx - 1] == false)
 		{
 			return false;
 		}
@@ -85,7 +86,7 @@ bool OccupancyGrid::isNewFeature1(Point2f& p)
 	// UpLeft
 	if ((width_idx - 1) >= 0 && (height_idx - 1) >= 0)
 	{
-		if (isFree[width_idx - 1][height_idx - 1] == true)
+		if (isFree[width_idx - 1][height_idx - 1] == false)
 		{
 			return false;
 		}
@@ -94,7 +95,7 @@ bool OccupancyGrid::isNewFeature1(Point2f& p)
 	// DownRight
 	if ((width_idx + 1) < nx && (height_idx + 1) < ny)
 	{
-		if (isFree[width_idx + 1][height_idx + 1] == true)
+		if (isFree[width_idx + 1][height_idx + 1] == false)
 		{
 			return false;
 		}
@@ -103,7 +104,7 @@ bool OccupancyGrid::isNewFeature1(Point2f& p)
 	// DownLeft
 	if ((width_idx - 1) >= 0 && (height_idx + 1) < ny)
 	{
-		if (isFree[width_idx - 1][height_idx + 1] == true)
+		if (isFree[width_idx - 1][height_idx + 1] == false)
 		{
 			return false;
 		}
@@ -118,7 +119,7 @@ void OccupancyGrid::resetGrid1()
 	{
 		for (int j = 0; j < ny; j++)
 		{
-			isFree[i][j] = false;
+			isFree[i][j] = true;
 		}
 	}
 }

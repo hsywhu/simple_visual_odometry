@@ -58,7 +58,7 @@ void VisualFrontend::trackAndExtract(cv::Mat& im_gray, Features2D& trackedPoints
 	extract1(im_gray, newPoints);
 	auto feend = chrono::steady_clock::now();
 	cout << "new feature time: "<< chrono::duration <double, milli> (feend-festart).count() << " ms" << endl;
-	std::
+	
 	//save old image
 	im_prev = im_gray;
 
@@ -79,7 +79,8 @@ void VisualFrontend::extract1(Mat& im_gray, Features2D& newPoints)
 	for (int i = 0; i < keypoints.size(); i++)
 	{
 		if (grid.isNewFeature1(keypoints[i])){
-			newPoints.addPoint1(keypoints[i], newId);
+			oldPoints.addPoint(keypoints[i], newId);
+			newPoints.addPoint(keypoints[i], newId);
 			newId++;
 		}
 	}
@@ -88,7 +89,7 @@ void VisualFrontend::extract1(Mat& im_gray, Features2D& newPoints)
 void VisualFrontend::track1(Mat& im_gray, Features2D& trackedPoints)
 {
     // fill the blank
-	double distance_thres = 1.0;
+	double distance_thres = 0.5;
 	cv::gpu::GpuMat prevImg, nextImg, prevPts, nextPts, backPts, status;
 	prevImg.upload(im_prev);
 	nextImg.upload(im_gray);
@@ -96,24 +97,30 @@ void VisualFrontend::track1(Mat& im_gray, Features2D& trackedPoints)
 	oldPoints_vec = oldPoints.getPoints();
 	cv::Mat oldPoints_cv(1, (int) oldPoints_vec.size(), CV_32FC2, (void*) &oldPoints_vec[0]);
 	prevPts.upload(oldPoints_cv);
+	
+	// Forward
 	d_pyrLK.sparse(prevImg, nextImg, prevPts, nextPts, status);
 	vector<cv::Point2f> nextPoints_vec;
 	VisualFrontend::downloadpts(nextPts, nextPoints_vec);
+	std::vector<unsigned char> forward_status;
+	VisualFrontend::downloadmask(status, forward_status);
+	
+	// Backward
 	d_pyrLK.sparse(nextImg, prevImg, nextPts, backPts, status);
 	vector<cv::Point2f> backPoints_vec;
 	VisualFrontend::downloadpts(backPts, backPoints_vec);
-	vector<cv::Point2f> trackedPoints_vec;
-	for (int i = 0; i < oldPoints_vec.size(); i++){
+	
+	for (int i = 0; i < forward_status.size(); i++){
     	float square_distance = pow(oldPoints_vec[i].x - backPoints_vec[i].x, 2.0) + pow(oldPoints_vec[i].y - backPoints_vec[i].y, 2.0);
-    	if (square_distance < distance_thres){
-    		trackedPoints_vec.push_back(nextPoints_vec[i]);
-    	}
+		forward_status[i] = (square_distance < distance_thres) && forward_status[i];
     }
-	// TODO Grid
-	for (int i = 0; i < trackedPoints_vec.size(); i++)
-	{
-		trackedPoints.addPoint(trackedPoints_vec[i], newId);
-		newId++;
-		grid.addPoint1(trackedPoints_vec[i]);
-	}
+	
+	trackedPoints = Features2D(oldPoints, nextPoints_vec, forward_status);
+	// trackedPoints = Features2D(oldPoints, nextPoints_vec);
+	
+	// Grid
+	for (int i = 0; i < trackedPoints.size(); i++)
+		grid.addPoint1(trackedPoints[i]);
+
+	cout << "trackedPoints' size" << nextPoints_vec.size() << endl;
 }
