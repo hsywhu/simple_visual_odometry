@@ -9,13 +9,30 @@
 #include <chrono>
 using namespace std;
 
-
+#include <opencv2/gpu/gpu.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/video/tracking.hpp>
 
+
 using namespace cv;
+using namespace cv::gpu;
+
+void downloadpts(const GpuMat& d_mat, vector<Point2f>& vec)
+{
+	vec.resize(d_mat.cols);
+	Mat mat(1, d_mat.cols, CV_32FC2, (void*)&vec[0]);
+	d_mat.download(mat);
+}
+
+void downloadmask(const GpuMat& d_mat, vector<uchar>& vec)
+{
+	vec.resize(d_mat.cols);
+	Mat mat(1, d_mat.cols, CV_8UC1, (void*)&vec[0]);
+	d_mat.download(mat);
+}
+
 int main( int argc, char** argv )
 {
 	int num_grid_height = 10;
@@ -68,16 +85,30 @@ int main( int argc, char** argv )
     vector<unsigned char> status_final;
     vector<float> error_final;
     chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
-    cv::calcOpticalFlowPyrLK( img_1, img_2, prev_keypoints, next_keypoints, status_forward, error_forward );
-    cv::calcOpticalFlowPyrLK( img_2, img_1, next_keypoints, back_keypoints, status_backward, error_backward );
+    
+    // cpu version
+    // cv::calcOpticalFlowPyrLK( img_1, img_2, prev_keypoints, next_keypoints, status_forward, error_forward );
+    // cv::calcOpticalFlowPyrLK( img_2, img_1, next_keypoints, back_keypoints, status_backward, error_backward );
+    
+    // gpu version
+    PyrLKOpticalFlow d_pyrLK;
+    cv::gpu::GpuMat img_1_gpu, img_2_gpu, prev_keypoints_gpu, next_keypoints_gpu, back_keypoints_gpu, status_forward_gpu, status_backward_gpu;
+    img_1_gpu.upload(img_1);
+    img_2_gpu.upload(img_2);
+    cv::Mat prev_keypoints_cv(1, (int) prev_keypoints.size(), CV_32FC2, (void*) &prev_keypoints[0]);
+	prev_keypoints_gpu.upload(prev_keypoints_cv);
+    d_pyrLK.sparse(img_1_gpu, img_2_gpu, prev_keypoints_gpu, next_keypoints_gpu, status_forward_gpu);
+    d_pyrLK.sparse(img_2_gpu, img_1_gpu, next_keypoints_gpu, back_keypoints_gpu, status_backward_gpu);
+    downloadpts(next_keypoints_gpu, next_keypoints);
+    downloadpts(back_keypoints_gpu, back_keypoints);
+    downloadmask(status_forward_gpu, status_forward);
     
     for (int i = 0; i < prev_keypoints.size(); i++){
     	float square_distance = pow(prev_keypoints[i].x - back_keypoints[i].x, 2.0) + pow(prev_keypoints[i].y - back_keypoints[i].y, 2.0);
-    	if (square_distance < distance_thres){
+    	if (square_distance < distance_thres && status_forward[i]){
     		final_keypoints_1.push_back(prev_keypoints[i]);
     		final_keypoints_2.push_back(next_keypoints[i]);
     		status_final.push_back(status_forward[i]);
-    		error_final.push_back(error_forward[i]);
     	}
     }
 
@@ -101,7 +132,7 @@ int main( int argc, char** argv )
     // cout<<"LK Flow use time："<<time_used.count()<<" seconds."<<endl;
 
 
-    // visualize all  keypoints
+    // visualize all keypoints
     hconcat(img_1,img_2,img_1);
     for ( int i=0; i< final_keypoints_1.size() ;i++)
     {
@@ -122,3 +153,4 @@ int main( int argc, char** argv )
 
     return 0;
 }
+
