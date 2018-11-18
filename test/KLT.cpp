@@ -49,24 +49,33 @@ int main( int argc, char** argv )
     Mat img_2 = imread ( argv[2], CV_LOAD_IMAGE_COLOR );
 
     list< cv::Point2f > keypoints;
-    vector<cv::KeyPoint> kps;
+    // vector<cv::KeyPoint> kps;
+    vector<cv::Point2f> kps;
 
-    std::string detectorType = "Feature2D.BRISK";
-    Ptr<FeatureDetector>detector = Algorithm::create<FeatureDetector>(detectorType);
-	detector->set("thres", 100);
-
-
-    detector->detect( img_1, kps );
+	// CPU version
+    // std::string detectorType = "Feature2D.BRISK";
+    // Ptr<FeatureDetector>detector = Algorithm::create<FeatureDetector>(detectorType);
+	// detector->set("thres", 100);
+    // detector->detect( img_1, kps );
+    
+    // GPU version
+    GoodFeaturesToTrackDetector_GPU gpu_detector;
+    gpu_detector = GoodFeaturesToTrackDetector_GPU(250, 0.01, 0);
+    cv::gpu::GpuMat img_1_gpu, d_pts;
+    img_1_gpu.upload(img_1);
+    gpu_detector(img_1_gpu, d_pts);
+    downloadpts(d_pts, kps);
+    
     bool grid[num_grid_height][num_grid_width];
     float img_height = img_1.size().height;
     float img_width = img_1.size().width;
 
     for ( auto kp:kps ){
-    	int width_idx = kp.pt.x / (img_width / num_grid_width);
-    	int height_idx = kp.pt.y / (img_height / num_grid_height);
+    	int width_idx = kp.x / (img_width / num_grid_width);
+    	int height_idx = kp.y / (img_height / num_grid_height);
 
     	if ( grid[height_idx][width_idx] == false){
-    		keypoints.push_back( kp.pt );
+    		keypoints.push_back( kp );
     		grid[height_idx][width_idx] = true;
     	}
     }
@@ -92,7 +101,11 @@ int main( int argc, char** argv )
     
     // gpu version
     PyrLKOpticalFlow d_pyrLK;
-    cv::gpu::GpuMat img_1_gpu, img_2_gpu, prev_keypoints_gpu, next_keypoints_gpu, back_keypoints_gpu, status_forward_gpu, status_backward_gpu;
+    d_pyrLK.winSize.width = 21;
+    d_pyrLK.winSize.height = 21;
+    d_pyrLK.maxLevel = 3;
+    d_pyrLK.iters = 30;
+    cv::gpu::GpuMat img_2_gpu, prev_keypoints_gpu, next_keypoints_gpu, back_keypoints_gpu, status_forward_gpu, status_backward_gpu;
     img_1_gpu.upload(img_1);
     img_2_gpu.upload(img_2);
     cv::Mat prev_keypoints_cv(1, (int) prev_keypoints.size(), CV_32FC2, (void*) &prev_keypoints[0]);
