@@ -129,22 +129,6 @@ int main( int argc, char** argv )
     chrono::duration<double> time_used = chrono::duration_cast<chrono::duration<double>>( t2-t1 );
     cout<<"LK Flow use time："<<time_used.count()<<" seconds."<<endl;
 
-    // vector<cv::Point2f> next_keypoints;
-    // vector<cv::Point2f> prev_keypoints;
-    // vector<cv::Point2f> back_keypoints;
-    // vector<cv::Point2f> final_keypoints_1;
-    // vector<cv::Point2f> final_keypoints_2;
-    // for ( auto kp:keypoints )
-    //     prev_keypoints.push_back(kp);
-    // vector<unsigned char> status;
-    // vector<float> error;
-    // chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
-    // cv::calcOpticalFlowPyrLK( img_1, img_2, prev_keypoints, next_keypoints, status, error );
-    // chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
-    // chrono::duration<double> time_used = chrono::duration_cast<chrono::duration<double>>( t2-t1 );
-    // cout<<"LK Flow use time："<<time_used.count()<<" seconds."<<endl;
-
-
     // visualize all keypoints
     hconcat(img_1,img_2,img_1);
     for ( int i=0; i< final_keypoints_1.size() ;i++)
