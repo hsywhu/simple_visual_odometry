@@ -96,7 +96,10 @@ using namespace std;
 using namespace cv;
 
 cv::Mat ComputeE(cv::Matx33d F, cv::Mat K){
-    cv::Mat F_ = cv::Mat(F);
+    cv::Mat F_ = cv::Mat::zeros(3, 3, CV_32F);
+    for (int i = 0; i < 9; i++){
+        F_.at<float>(i/3, i%3) = F(i/3, i%3);
+    }
     cv::Mat E = K.t() * F_ * K;
     return E;
 }
@@ -150,6 +153,8 @@ cv::Matx33d Findfundamental(vector<cv::Point2f> prev_subset,vector<cv::Point2f> 
     cv::SVD svd1(E);
     
     cv::Mat w_mat = cv::Mat::eye(3, 3, CV_32F);
+    // cout <<"w"<< svd1.w.rows <<" "<<svd1.w.cols << endl;
+    // cout <<"w.size"<< svd1.w.size()<< endl;
     w_mat.at<float>(0, 0) = svd1.w.at<float>(0, 0);
     w_mat.at<float>(1, 1) = svd1.w.at<float>(1, 0);
     w_mat.at<float>(2, 2) = 0;
@@ -313,7 +318,7 @@ int main( int argc, char** argv )
     K.at<float>(2, 2) = 1.0;
     K.at<float>(0, 2) = 318.643040;
     K.at<float>(1, 2) = 255.313989;
-    cv::Mat E = computeE(F, K);
+    cv::Mat E = ComputeE(F, K);
 
     // initialize W and Z to compute S and R
     cv::Mat W = cv::Mat::zeros(3, 3, CV_32F);
@@ -330,7 +335,7 @@ int main( int argc, char** argv )
     cv::Mat U1 = svd_SR.u * W.t() * svd_SR.vt;
     cv::Mat S2 = svd_SR.u * Z * svd_SR.u.t();
     cv::Mat U2 = svd_SR.u * W * svd_SR.vt;
-
-    cout << svd_SR.w.at<float>(0, 0) << " " << svd_SR.w.at<float>(1, 1) << " " << svd_SR.w.at<float>(1, 1) << endl;
+	cout << svd_SR.w.size() << endl;
+    cout << svd_SR.w.at<float>(0, 0) << " " << svd_SR.w.at<float>(1, 0) << " " << svd_SR.w.at<float>(2, 0) << endl;
     return 0;
 }
