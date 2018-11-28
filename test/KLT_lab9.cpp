@@ -95,6 +95,14 @@ using namespace std;
 
 using namespace cv;
 
+cv::Mat ComputeE(cv::Matx33d F, cv::Mat K){
+    cv::Mat F_ = cv::Mat(F);
+    cv::Mat E = K.t() * F_ * K;
+    return E;
+}
+
+
+
 cv::Matx33d Findfundamental(vector<cv::Point2f> prev_subset,vector<cv::Point2f> next_subset, vector<int> img_size){
     // cv::Matx33d F;
     cv::Mat F;
@@ -287,9 +295,42 @@ int main( int argc, char** argv )
             next_subset.push_back(kps_next[j]);
         }
     }
-    // cout << "fucker" << endl;
     cout << prev_subset.size() << endl;
     F = Findfundamental(prev_subset,next_subset,img_size);
     cout<<"Fundamental matrix is \n"<<F<<endl;
+
+    // -----------------lab 9-----------------------
+    // compute E from F
+    /* K
+    camera.fx: 517.3
+    camera.fy: 516.5
+    camera.cx: 318.643040
+    camera.cy: 255.313989
+    */
+    cv::Mat K = cv::Mat::zeros(3, 3, CV_32F);
+    K.at<float>(0, 0) = 517.3;
+    K.at<float>(1, 1) = 516.5;
+    K.at<float>(2, 2) = 1.0;
+    K.at<float>(0, 2) = 318.643040;
+    K.at<float>(1, 2) = 255.313989;
+    cv::Mat E = computeE(F, K);
+
+    // initialize W and Z to compute S and R
+    cv::Mat W = cv::Mat::zeros(3, 3, CV_32F);
+    W.at<float>(0, 1) = -1;
+    W.at<float>(1, 0) = 1;
+    W.at<float>(2, 2) = 1;
+    cv::Mat Z = cv::Mat::zeros(3, 3, CV_32F);
+    Z.at<float>(0, 1) = 1;
+    Z.at<float>(1, 0) = -1;
+
+    // compute S and R
+    cv::SVD svd_SR(E);
+    cv::Mat S1 = (-1 * svd_SR.u) * Z * svd_SR.u.t();
+    cv::Mat U1 = svd_SR.u * W.t() * svd_SR.vt;
+    cv::Mat S2 = svd_SR.u * Z * svd_SR.u.t();
+    cv::Mat U2 = svd_SR.u * W * svd_SR.vt;
+
+    cout << svd_SR.w.at<float>(0, 0) << " " << svd_SR.w.at<float>(1, 1) << " " << svd_SR.w.at<float>(1, 1) << endl;
     return 0;
 }
