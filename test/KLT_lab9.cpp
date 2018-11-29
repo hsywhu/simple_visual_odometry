@@ -104,6 +104,40 @@ cv::Mat ComputeE(cv::Matx33d F, cv::Mat K){
     return E;
 }
 
+cv::Mat ComputeRT(cv::Mat R, cv::Mat t){
+    cv::Mat Rt = cv::Mat::zeros(4, 4, CV_32F);
+    for (int i = 0; i < 9; i++){
+        Rt.at<float>(i/3, i%3) = R.at<float>(i/3, i%3);
+    }
+    for (int i = 0; i < 3; i++){
+        Rt.at<float>(i, 3) = t.at<float>(i, 0);
+        Rt.at<float>(3, i) = 0;
+    }
+    Rt.at<float>(3, 3) = 1.0;
+    return Rt;
+}
+
+bool Triangulation(cv::Mat P1, cv::Mat P2, cv::Point2f pt1, cv::Point2f pt2, cv::Mat RT){
+    cv::Mat A = cv::Mat::zeros(4, 4, CV_32F);
+    
+    A.row(0) = pt1.x * P1.row(2) - P1.row(0);
+    A.row(1) = pt1.y * P1.row(2) - P1.row(1);
+    A.row(2) = pt2.x * P2.row(2) - P2.row(0);
+    A.row(3) = pt2.y * P2.row(2) - P2.row(1);
+    
+    // A.row(0) = pt1.y * P1.row(2) - P1.row(1);
+    // A.row(1) = P1.row(0) - pt1.x * P1.row(2);
+    // A.row(2) = pt2.y * P2.row(2) - P2.row(1);
+    // A.row(3) = P2.row(0) - pt2.x * P2.row(2);
+    cv::SVD svd_A(A);
+    // cout << "vt" << svd_A.vt.rows << " " << svd_A.vt.cols << endl;
+    cv::Mat X1 = svd_A.vt.row(svd_A.vt.rows - 1);
+    X1 = X1.t();
+    cv::Mat X2 = RT * X1;
+    if (X1.at<float>(2, 0) > 0 && X2.at<float>(2, 0))
+        return true;
+    return false;
+}
 
 
 cv::Matx33d Findfundamental(vector<cv::Point2f> prev_subset,vector<cv::Point2f> next_subset, vector<int> img_size){
@@ -143,6 +177,14 @@ cv::Matx33d Findfundamental(vector<cv::Point2f> prev_subset,vector<cv::Point2f> 
         W.at<float>(i, 5) = v1;
         W.at<float>(i, 6) = u2;
         W.at<float>(i, 7) = v2;
+        // W.at<float>(i, 0) = u1 * u2;
+        // W.at<float>(i, 1) = u2 * v1;
+        // W.at<float>(i, 2) = u2;
+        // W.at<float>(i, 3) = v2 * u1;
+        // W.at<float>(i, 4) = v1 * v2;
+        // W.at<float>(i, 5) = v2;
+        // W.at<float>(i, 6) = u1;
+        // W.at<float>(i, 7) = v1;
 	}
 	
     cv::SVD svd(W);
@@ -338,12 +380,55 @@ int main( int argc, char** argv )
     cv::Mat R2 = svd_SR.u * W * svd_SR.vt;
 
     cv::SVD svd_S(S1);
-    cv::Mat t1 = svd_S.vt.row(svd_S.vt.rows - 1);
-    cv::Mat t2 = -1 * t1;
+    cv::Mat T1 = svd_S.vt.row(svd_S.vt.rows - 1);
+    cv::Mat T2 = -1 * T1;
 
     vector<int> counter (4, 0);
-    cv::Mat Rt1 = 
-    cv::Mat P1 = 
+    cv::Mat K_3x4 = cv::Mat::zeros(3, 4, CV_32F);
+    for (int i = 0; i < 9; i++){
+        K_3x4.at<float>(i/3, i%3) = K.at<float>(i/3, i%3);
+    }
+
+    vector<cv::Mat> RT;
+    vector<cv::Mat> P;
+
+    RT.push_back(ComputeRT(R1, T1));
+    P.push_back(K_3x4 * RT[0]);
+
+    RT.push_back(ComputeRT(R1, T2));
+    P.push_back(K_3x4 * RT[1]);
+
+    RT.push_back(ComputeRT(R2, T1));
+    P.push_back(K_3x4 * RT[2]);
+
+    RT.push_back(ComputeRT(R2, T2));
+    P.push_back(K_3x4 * RT[3]);
+
+    // cv::Mat RT1 = ComputeRT(R1, T1);
+    // cv::Mat P1 = K_3x4 * RT1;
+
+    // cv::Mat RT2 = ComputeRT(R1, T2);
+    // cv::Mat P2 = K_3x4 * RT2;
+
+    // cv::Mat RT3 = ComputeRT(R2, T1);
+    // cv::Mat P3 = K_3x4 * RT3;
+
+    // cv::Mat RT4 = ComputeRT(R2, T2);
+    // cv::Mat P4 = K_3x4 * RT4;
+
+    cv::Mat camera_RT = cv::Mat::eye(4, 4, CV_32F);
+    cv::Mat camera_P = K_3x4 * camera_RT;
+
+    for (int i = 0; i < prev_subset.size(); i++){
+        for (int j = 0; j < RT.size(); j++){
+            if (Triangulation(camera_P, P[j], prev_subset[i], next_subset[i], RT[j]))
+                counter[j]++;
+        }
+    }
+
+    for (int j = 0; j < counter.size(); j++){
+        cout << j << " " << counter[j] << endl;
+    }
 
 	// cout << svd_SR.w.size() << endl;
     // cout << svd_SR.w.at<float>(0, 0) << " " << svd_SR.w.at<float>(1, 0) << " " << svd_SR.w.at<float>(2, 0) << endl;
