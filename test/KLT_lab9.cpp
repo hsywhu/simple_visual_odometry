@@ -331,11 +331,21 @@ int main( int argc, char** argv )
 
     // compute S and R
     cv::SVD svd_SR(E);
+
     cv::Mat S1 = (-1 * svd_SR.u) * Z * svd_SR.u.t();
-    cv::Mat U1 = svd_SR.u * W.t() * svd_SR.vt;
+    cv::Mat R1 = svd_SR.u * W.t() * svd_SR.vt;
     cv::Mat S2 = svd_SR.u * Z * svd_SR.u.t();
-    cv::Mat U2 = svd_SR.u * W * svd_SR.vt;
-	cout << svd_SR.w.size() << endl;
-    cout << svd_SR.w.at<float>(0, 0) << " " << svd_SR.w.at<float>(1, 0) << " " << svd_SR.w.at<float>(2, 0) << endl;
+    cv::Mat R2 = svd_SR.u * W * svd_SR.vt;
+
+    cv::SVD svd_S(S1);
+    cv::Mat t1 = svd_S.vt.row(svd_S.vt.rows - 1);
+    cv::Mat t2 = -1 * t1;
+
+    vector<int> counter (4, 0);
+    cv::Mat Rt1 = 
+    cv::Mat P1 = 
+
+	// cout << svd_SR.w.size() << endl;
+    // cout << svd_SR.w.at<float>(0, 0) << " " << svd_SR.w.at<float>(1, 0) << " " << svd_SR.w.at<float>(2, 0) << endl;
     return 0;
 }
