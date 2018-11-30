@@ -352,7 +352,7 @@ int main( int argc, char** argv )
     // cout << prev_subset.size() << endl;
     F = Findfundamental(prev_subset,next_subset,img_size);
     // cout<<"Fundamental matrix is \n"<<F<<endl;
-/*
+
     // -----------------lab 9-----------------------
     // compute E from F
     // K:
@@ -384,8 +384,13 @@ int main( int argc, char** argv )
 
     cv::Mat S1 = (-1 * svd_SR.u) * Z * svd_SR.u.t();
     cv::Mat R1 = svd_SR.u * W.t() * svd_SR.vt;
+    if(cv::determinant(R1) < 0)
+        R1 = -R1;
     // cv::Mat S2 = svd_SR.u * Z * svd_SR.u.t();
     cv::Mat R2 = svd_SR.u * W * svd_SR.vt;
+    if(cv::determinant(R2) < 0)
+        R2 = -R2;
+    
     // cout << "R1\n" << R1 << endl;
     // cout << "R2\n" << R2 << endl;
     // cout << "E.w" << svd_SR.w << endl;
@@ -445,8 +450,8 @@ int main( int argc, char** argv )
 
 	// cout << svd_SR.w.size() << endl;
     // cout << svd_SR.w.at<double>(0, 0) << " " << svd_SR.w.at<double>(1, 0) << " " << svd_SR.w.at<double>(2, 0) << endl;
-*/
 
+/*
     // test ------------------------------------------------------
    	// Create a random 3D scene
 	cv::Mat points3D(1, 16, CV_64FC4);
@@ -582,7 +587,7 @@ int main( int argc, char** argv )
         cout << j << " " << counter[j] << endl;
         cout << j << " " << RT[j] << endl;
     }
-
+*/
     
 
     return 0;
