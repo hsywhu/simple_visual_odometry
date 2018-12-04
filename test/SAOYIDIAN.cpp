@@ -563,7 +563,7 @@ int main( int argc, char** argv )
 	cv::Matx34d C2 = cv::Matx34d::eye();
 	cv::Mat K = cv::Mat::eye(3, 3, CV_64F);
 
-	C2(1, 3) = 1;
+	C2(2, 3) = 1;
     // C2(0, 0) = 2;
     // C2(1, 2) = 1.5;
     // C2(0, 3) = 1;
@@ -614,6 +614,10 @@ int main( int argc, char** argv )
         RR.at<double>(i/3, i%3) = C2_.at<double>(i/3, i%3);
     }
     cv::Mat E = tx * RR;
+    img_size[0] = 1;
+    img_size[1] = 1;
+    F = Findfundamental(points1,points2,img_size);
+    E = K.t() * Mat(F) * K;
 
     cv::Mat W = cv::Mat::zeros(3, 3, CV_64F);
     W.at<double>(0, 1) = -1;
@@ -691,8 +695,6 @@ int main( int argc, char** argv )
         cout << j << " " << counter[j] << endl;
         cout << j << " " << RT[j] << endl;
     }
-
-    
 
     return 0;
 }
