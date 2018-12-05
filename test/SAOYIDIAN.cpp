@@ -96,16 +96,6 @@ using namespace std;
 #include <opencv2/imgproc/imgproc.hpp>
 using namespace cv;
 
-cv::Mat ComputeE(cv::Matx33d F, cv::Mat K){
-    cv::Mat F_ = cv::Mat::zeros(3, 3, CV_64F);
-    for (int i = 0; i < 9; i++){
-        F_.at<double>(i/3, i%3) = F(i/3, i%3);
-    }
-    // cv::Mat F_ = Mat(F);
-    cv::Mat E = K.t() * F_ * K;
-    return E;
-}
-
 cv::Mat ComputeRT(cv::Mat R, cv::Mat t){
     cv::Mat Rt = cv::Mat::zeros(4, 4, CV_64F);
     for (int i = 0; i < 9; i++){
@@ -154,6 +144,7 @@ cv::Matx33d Findfundamental(vector<cv::Point2f> prev_subset,vector<cv::Point2f> 
     Normalize.at<double>(1, 1) = 2.0 / img_size[1];
     Normalize.at<double>(0, 2) = -1;
     Normalize.at<double>(1, 2) = -1;
+    Normalize.at<double>(2, 2) = 1;
     
     cv::Mat W = cv::Mat::ones(prev_subset.size(), 9, CV_64F);
     
@@ -195,15 +186,15 @@ cv::Matx33d Findfundamental(vector<cv::Point2f> prev_subset,vector<cv::Point2f> 
 	}
 	
     cv::SVD svd(W);
-    cv::Mat E = cv::Mat::ones(3, 3, CV_64F);
+    cv::Mat E = cv::Mat(3, 3, CV_64F);
+    // cout <<"svd.vt.size"<< svd.vt.rows << " " << svd.vt.cols << endl;
     for (int i = 0; i < 9; i++){
         E.at<double>(i/3, i%3) = svd.vt.at<double>(svd.vt.rows - 1, i);
     }
     cv::SVD svd1(E);
     
     cv::Mat w_mat = cv::Mat::eye(3, 3, CV_64F);
-    // cout <<"w"<< svd1.w.rows <<" "<<svd1.w.cols << endl;
-    // cout <<"w.size"<< svd1.w.size()<< endl;
+    // cout <<"w.size"<< svd1.w.rows << " " << svd1.w.cols << endl;
     w_mat.at<double>(0, 0) = svd1.w.at<double>(0, 0);
     w_mat.at<double>(1, 1) = svd1.w.at<double>(1, 0);
     w_mat.at<double>(2, 2) = 0;
@@ -284,6 +275,7 @@ void DrawEpipolar(vector<cv::Point2f> prev_subset, vector<cv::Point2f>next_subse
         pt2.y = y2;
 
         line(img_1, pt1, pt2, cv::Scalar(0,255,255));
+        circle(img_1, prev_subset[i],5, cv::Scalar(0,0,255));
 
         Point pt3;
         Point pt4;
@@ -322,9 +314,69 @@ void DrawEpipolar(vector<cv::Point2f> prev_subset, vector<cv::Point2f>next_subse
         pt4.y = y2;
 
         line(img_2, pt3, pt4, cv::Scalar(0,255,255));
+        circle(img_2, next_subset[i],5, cv::Scalar(0,0,255));
     }
     hconcat(img_1,img_2,img_1);
     cv::imshow("epipolar", img_1);
+    cv::waitKey(0);
+}
+
+static void drawEpipolarLines(const cv::Matx33d F,
+                const cv::Mat& img1, const cv::Mat& img2,
+                const std::vector<cv::Point2f> prev_subset,
+                const std::vector<cv::Point2f> next_subset,
+                const double d
+                )
+{
+    cv::Mat outImg(img1.rows, img1.cols*2, CV_8UC3);
+    cv::Rect rect1(0,0, img1.cols, img1.rows);
+    cv::Rect rect2(img1.cols, 0, img1.cols, img1.rows);
+    img1.copyTo(outImg(rect1));
+    img2.copyTo(outImg(rect2));
+
+    cv::RNG rng(0);
+    for(size_t i=0; i<prev_subset.size(); i++)
+    {
+        cv::Scalar color(rng(256),rng(256),rng(256));
+
+        double u1 = prev_subset[i].x;
+        double v1 = prev_subset[i].y;
+        double u2 = next_subset[i].x;
+        double v2 = next_subset[i].y;
+
+        cv::Matx33d F_t = F.t();
+
+        // epipolar line 1
+        double a1 = F_t(0, 0) * u2 + F_t(0, 1) * v2 + F_t(0, 2);
+        double b1 = F_t(1, 0) * u2 + F_t(1, 1) * v2 + F_t(1, 2);
+        double c1 = F_t(2, 0) * u2 + F_t(2, 1) * v2 + F_t(2, 2);
+        
+        // epipolar line 2
+        double a2 = F(0, 0) * u1 + F(0, 1) * v1 + F(0, 2);
+        double b2 = F(1, 0) * u1 + F(1, 1) * v1 + F(1, 2);
+        double c2 = F(2, 0) * u1 + F(2, 1) * v1 + F(2, 2);
+
+
+        double dist1 = (double)abs(a1 * u1 + b1 * v1 + c1) / sqrt(a1 * a1 + b1 * b1);
+        double dist2 = (double)abs(a2 * u2 + b2 * v2 + c2) / sqrt(a2 * a2 + b2 * b2);
+
+        if(dist1>d||dist2>d){
+            continue;
+        }
+    
+        cv::Mat left = outImg(rect1);
+        cv::Mat right = outImg(rect2);
+        cv::line(left,
+                cv::Point(0,-c1/b1),
+                cv::Point(img1.cols,-(c1+a1*img1.cols)/b1), color);
+        cv::circle(left, prev_subset[i], 5, color, -1, CV_AA);
+
+        cv::line(right,
+                cv::Point(0,-c2/b2),
+                cv::Point(img2.cols,-(c2+a2*img2.cols)/b2), color);
+        cv::circle(right, next_subset[i], 5, color, -1, CV_AA);
+    }
+    cv::imshow("Epipolar Constraint", outImg);
     cv::waitKey(0);
 }
 
@@ -452,9 +504,11 @@ int main( int argc, char** argv )
     cout << "F" << endl;
     cout << F << endl;
     // void DrawEpipolar(vector<cv::Point2f> prev_subset, vector<cv::Point2f>next_subset, Mat img_1, Mat img_2, vector<int> img_size, cv::Matx33d F){
-    DrawEpipolar(prev_subset, next_subset, img_1, img_2, img_size, F);
+    // DrawEpipolar(prev_subset, next_subset, img_1, img_2, img_size, F);
+    drawEpipolarLines(F, img_1, img_2, prev_subset, next_subset, d);
     cv::Matx33d F_cv = (Matx33d)cv::findFundamentalMat(prev_subset, next_subset, CV_FM_8POINT);
-    DrawEpipolar(prev_subset, next_subset, img_1, img_2, img_size, F_cv);
+    drawEpipolarLines(F_cv, img_1, img_2, prev_subset, next_subset, d);
+    // DrawEpipolar(prev_subset, next_subset, img_1, img_2, img_size, F_cv);
     cout << "F_cv" << endl;
     cout << F_cv << endl;
     // cout<<"Fundamental matrix is \n"<<F<<endl;
@@ -637,10 +691,8 @@ int main( int argc, char** argv )
     // compute S and R
     cv::SVD svd_SR(E);
     cout << svd_SR.w << endl;
-    double lambda = svd_SR.w.at<double>(0, 0);
     // cout << "lambda" << lambda << endl;
     cv::Mat S1 = (-1 * svd_SR.u) * Z * svd_SR.u.t();
-    S1 *= lambda;
     cv::Mat R1 = svd_SR.u * W.t() * svd_SR.vt;
     if(cv::determinant(R1) < 0)
         R1 = -R1;
