@@ -256,7 +256,6 @@ void DrawEpipolar(vector<cv::Point2f> prev_subset, vector<cv::Point2f>next_subse
 
         double l1_ = l.at<double>(0,0);
         double l2_ = l.at<double>(1,0);
-    
         
         double s = sqrt(pow(l1_,2) + pow(l2_,2));
 
@@ -454,7 +453,7 @@ int main( int argc, char** argv )
     cout << F << endl;
     // void DrawEpipolar(vector<cv::Point2f> prev_subset, vector<cv::Point2f>next_subset, Mat img_1, Mat img_2, vector<int> img_size, cv::Matx33d F){
     DrawEpipolar(prev_subset, next_subset, img_1, img_2, img_size, F);
-    cv::Matx33d F_cv = (Matx33d)cv::findFundamentalMat(prev_subset, next_subset, cv::FM_8POINT, 1.5f);
+    cv::Matx33d F_cv = (Matx33d)cv::findFundamentalMat(prev_subset, next_subset, CV_FM_8POINT);
     DrawEpipolar(prev_subset, next_subset, img_1, img_2, img_size, F_cv);
     cout << "F_cv" << endl;
     cout << F_cv << endl;
@@ -563,10 +562,17 @@ int main( int argc, char** argv )
 	cv::Matx34d C2 = cv::Matx34d::eye();
 	cv::Mat K = cv::Mat::eye(3, 3, CV_64F);
 
-	C2(2, 3) = 1;
+	// C2(2, 3) = 1;
     // C2(0, 0) = 2;
     // C2(1, 2) = 1.5;
     // C2(0, 3) = 1;
+    C2(0, 0) = 0;
+    C2(0, 1) = -1;
+    C2(1, 0) = 1;
+    C2(1, 1) = 0;
+    C2(2, 3) = 1;
+    // C2(0, 3) = 3;
+    // C2(1, 3) = 2;
 
 	// Compute points projection
 	std::vector<cv::Point2f> points1;
@@ -614,6 +620,7 @@ int main( int argc, char** argv )
         RR.at<double>(i/3, i%3) = C2_.at<double>(i/3, i%3);
     }
     cv::Mat E = tx * RR;
+    
     img_size[0] = 1;
     img_size[1] = 1;
     F = Findfundamental(points1,points2,img_size);
@@ -629,8 +636,11 @@ int main( int argc, char** argv )
 
     // compute S and R
     cv::SVD svd_SR(E);
-
+    cout << svd_SR.w << endl;
+    double lambda = svd_SR.w.at<double>(0, 0);
+    // cout << "lambda" << lambda << endl;
     cv::Mat S1 = (-1 * svd_SR.u) * Z * svd_SR.u.t();
+    S1 *= lambda;
     cv::Mat R1 = svd_SR.u * W.t() * svd_SR.vt;
     if(cv::determinant(R1) < 0)
         R1 = -R1;
